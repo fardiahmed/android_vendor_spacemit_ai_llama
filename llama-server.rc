@@ -1,0 +1,18 @@
+# On-device LLM server (llama.cpp router mode), models in /data/vendor/llm.
+# -t 4: IME kernels on the four AI cores; mlock keeps the weights resident.
+service vendor.llama-server /vendor/bin/llama-server --models-dir /data/vendor/llm --models-max 1 --host ${persist.vendor.llm.host:-127.0.0.1} --port 8080 -t 4 -c 4096 -np 1 --load-mode mmap+mlock --log-file /data/vendor/llm-log/llama-server.log --log-timestamps --metrics
+    class late_start
+    rlimit memlock unlimited unlimited
+    user system
+    group system inet
+    disabled
+
+on post-fs-data
+    mkdir /data/vendor/llm 0775 system system
+    mkdir /data/vendor/llm-log 0770 system system
+
+on property:sys.boot_completed=1 && property:persist.vendor.llm.enable=1
+    start vendor.llama-server
+
+on property:persist.vendor.llm.enable=0
+    stop vendor.llama-server

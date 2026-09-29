@@ -1,0 +1,47 @@
+// llama.cpp prebuilts (build_riscv64.sh) using the K1 IME matrix instructions; llama-server
+// runs as vendor.llama-server in router mode (see README.android16-riscv.md).
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+cc_defaults {
+    name: "spacemit_llama_prebuilt_defaults",
+    vendor: true,
+    compile_multilib: "64",
+    // NDK executables (libc++ linked statically, only libc/libm/libdl needed).
+    check_elf_files: false,
+    strip: {
+        none: true,
+    },
+}
+
+cc_prebuilt_binary {
+    name: "llama-server",
+    defaults: ["spacemit_llama_prebuilt_defaults"],
+    arch: {
+        riscv64: {
+            srcs: ["prebuilt/riscv64/llama-server"],
+        },
+    },
+    init_rc: ["llama-server.rc"],
+}
+
+cc_prebuilt_binary {
+    name: "llama-cli",
+    defaults: ["spacemit_llama_prebuilt_defaults"],
+    arch: {
+        riscv64: {
+            srcs: ["prebuilt/riscv64/llama-cli"],
+        },
+    },
+}
+
+cc_prebuilt_binary {
+    name: "llama-bench",
+    defaults: ["spacemit_llama_prebuilt_defaults"],
+    arch: {
+        riscv64: {
+            srcs: ["prebuilt/riscv64/llama-bench"],
+        },
+    },
+}

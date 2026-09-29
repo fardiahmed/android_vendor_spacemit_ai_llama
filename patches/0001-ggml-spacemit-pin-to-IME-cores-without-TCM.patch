@@ -1,0 +1,40 @@
+diff --git a/ggml/src/ggml-cpu/spacemit/ime_env.cpp b/ggml/src/ggml-cpu/spacemit/ime_env.cpp
+index a13ba39..a2aab1b 100644
+--- a/ggml/src/ggml-cpu/spacemit/ime_env.cpp
++++ b/ggml/src/ggml-cpu/spacemit/ime_env.cpp
+@@ -4,6 +4,7 @@
+ #include "spine_mem_pool.h"
+ 
+ #include <fcntl.h>
++#include <sched.h>
+ #include <unistd.h>
+ 
+ #include <algorithm>
+@@ -284,6 +285,27 @@ spine_env_info::spine_env_info() {
+         }
+     }
+ 
++    // Without TCM (e.g. Android: no /dev/tcm_sync_mem, no libspine_tcm.so) nothing pins the
++    // worker threads to the IME cores, and on the K1 only cores 0-3 have XSMTVDot: a thread
++    // scheduled on cores 4-7 dies with SIGILL on its first vmadot. This runs in a static
++    // constructor on the main thread before any worker is created, so restricting the
++    // process here covers every thread (and child process) that follows.
++    if ((use_ime1 || use_ime2) && !use_tcm && cpu_mask != 0) {
++        cpu_set_t cpuset;
++        CPU_ZERO(&cpuset);
++        for (int i = 0; i < num_cores && i < 64; i++) {
++            if (cpu_mask & (1ULL << i)) {
++                CPU_SET(i, &cpuset);
++            }
++        }
++        if (sched_setaffinity(0, sizeof(cpuset), &cpuset) != 0) {
++            GGML_LOG_WARN("CPU_RISCV64_SPACEMIT: cannot restrict the process to the IME cores (mask %lx), "
++                          "disabling IME\n", cpu_mask);
++            use_ime1 = false;
++            use_ime2 = false;
++        }
++    }
++
+     GGML_LOG_DEBUG(
+         "CPU_RISCV64_SPACEMIT: num_cores: %d, num_perfer_cores: %d, perfer_core_arch_id: %x, exclude_main_thread: %d, "
+         "use_ime1: %d, use_ime2: %d, mem_backend: %s, cpu_mask: %lx, aicpu_id_offset: %d\n",
